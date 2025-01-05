@@ -1,0 +1,25 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Device is already configured"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "name": "Name",
+                    "telnet_port": "Telnet Port",
+                    "http_port": "HTTP Port",
+                    "rtsp_port": "RTSP Port"
+                },
+                "description": "Set up your FlightGear connection.",
+                "title": "FlightGear"
+            }
+        }
+    }
+}

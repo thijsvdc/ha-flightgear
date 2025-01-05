@@ -1,7 +1,7 @@
 """Constants for the FlightGear integration."""
 from homeassistant.const import Platform
 
-DOMAIN = "ha_flightgear"
+DOMAIN = "HA FlightGear"
 PLATFORMS = [Platform.SENSOR, Platform.CAMERA]
 
 DEFAULT_NAME = "FlightGear"

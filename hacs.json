@@ -1,4 +1,3 @@
-# hacs.json
 {
     "name": "ha-flightgear",
     "render_readme": true,

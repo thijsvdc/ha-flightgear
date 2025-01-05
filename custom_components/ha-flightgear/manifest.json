@@ -1,0 +1,14 @@
+# manifest.json
+{
+    "domain": "ha_flightgear",
+    "name": "FlightGear Flight Simulator",
+    "documentation": "https://github.com/thijsvdc/ha-flightgear",
+    "issue_tracker": "https://github.com/thijsvdc/ha-flightgear/issues",
+    "dependencies": [],
+    "codeowners": ["@thijsvdc"],
+    "requirements": ["requests>=2.31.0"],
+    "config_flow": true,
+    "version": "1.0.0",
+    "iot_class": "local_polling",
+    "homeassistant": "2025.1.0"
+}

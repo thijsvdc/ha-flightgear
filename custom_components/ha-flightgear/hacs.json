@@ -1,0 +1,7 @@
+# hacs.json
+{
+    "name": "ha-flightgear",
+    "render_readme": true,
+    "domains": ["sensor", "camera"],
+    "homeassistant": "2025.1.0"
+}

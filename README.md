@@ -13,7 +13,7 @@ A Home Assistant custom integration for FlightGear Flight Simulator, providing r
 
 ### HACS Installation
 1. Add this repository to HACS as a custom repository
-   - URL: `https://github.com/yourusername/ha-flightgear`
+   - URL: `https://github.com/thijsvdc/ha-flightgear`
    - Category: Integration
 2. Install the integration through HACS
 3. Restart Home Assistant

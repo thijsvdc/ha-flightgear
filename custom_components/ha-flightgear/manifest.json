@@ -1,5 +1,5 @@
 {
-    "domain": "ha_flightgear",
+    "domain": "HA FlightGear",
     "name": "FlightGear Flight Simulator",
     "documentation": "https://github.com/thijsvdc/ha-flightgear",
     "issue_tracker": "https://github.com/thijsvdc/ha-flightgear/issues",

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import socket
+import asyncio
 from typing import Any
 
 import voluptuous as vol
@@ -39,18 +40,52 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
+    _LOGGER.debug("Starting connection validation to %s:%s", data[CONF_HOST], data[CONF_TELNET_PORT])
 
     try:
-        # Test telnet connection
-        reader, writer = await hass.loop.create_connection(
-            lambda: socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-            data[CONF_HOST],
-            data[CONF_TELNET_PORT],
+        # Create a socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)  # 5 second timeout
+        
+        _LOGGER.debug("Socket created, attempting connection...")
+        
+        # Convert the socket connect to an async operation
+        await hass.async_add_executor_job(
+            sock.connect, (data[CONF_HOST], data[CONF_TELNET_PORT])
         )
-        writer.close()
-        await writer.wait_closed()
+        
+        _LOGGER.debug("Connected successfully, attempting to receive data...")
+        
+        # Try to receive some data
+        try:
+            initial_data = await hass.async_add_executor_job(
+                sock.recv, 1024
+            )
+            _LOGGER.debug("Received data: %s", initial_data)
+        except socket.timeout:
+            _LOGGER.error("Timeout while receiving data")
+            raise CannotConnect("Timeout while receiving data")
+        
+        # Close the socket properly
+        sock.close()
+        _LOGGER.debug("Connection test completed successfully")
+        
+        if not initial_data:
+            _LOGGER.error("No data received from FlightGear")
+            raise CannotConnect("No data received from FlightGear")
+        
+    except socket.timeout:
+        _LOGGER.error("Connection timed out")
+        raise CannotConnect("Connection timed out")
+    except ConnectionRefusedError:
+        _LOGGER.error("Connection refused")
+        raise CannotConnect("Connection refused")
+    except socket.gaierror:
+        _LOGGER.error("Address resolution error")
+        raise CannotConnect("Address resolution error")
     except Exception as err:
-        raise CannotConnect from err
+        _LOGGER.exception("Unexpected error during connection test")
+        raise CannotConnect(f"Unexpected error: {str(err)}")
 
     # Return info that you want to store in the config entry.
     return {"title": data[CONF_NAME]}
@@ -68,12 +103,15 @@ class FlightGearConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
+                _LOGGER.debug("Processing user input: %s", user_input)
                 info = await validate_input(self.hass, user_input)
+                _LOGGER.debug("Validation successful, creating entry")
                 return self.async_create_entry(title=info["title"], data=user_input)
-            except CannotConnect:
+            except CannotConnect as err:
+                _LOGGER.error("Cannot connect: %s", str(err))
                 errors["base"] = "cannot_connect"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception: %s", str(err))
                 errors["base"] = "unknown"
 
         return self.async_show_form(
@@ -82,6 +120,11 @@ class FlightGearConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-
 class CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
+    def __init__(self, message="Failed to connect"):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return self.message

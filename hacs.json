@@ -1,5 +1,5 @@
 {
-    "name": "ha-flightgear",
+    "name": "Flightgear for HA",
     "render_readme": true,
     "domains": ["sensor", "camera"],
     "homeassistant": "2025.1.0"

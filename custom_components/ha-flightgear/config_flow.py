@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import socket
-import asyncio
+import telnetlib
 from typing import Any
 
 import voluptuous as vol
@@ -40,52 +40,53 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    _LOGGER.debug("Starting connection validation to %s:%s", data[CONF_HOST], data[CONF_TELNET_PORT])
+    
+    async def try_connect():
+        """Try to connect to FlightGear."""
+        try:
+            # Create telnet connection with longer timeout
+            tn = telnetlib.Telnet(timeout=10)
+            _LOGGER.debug("Attempting to connect to %s:%s", data[CONF_HOST], data[CONF_TELNET_PORT])
+            
+            # Connect
+            tn.open(data[CONF_HOST], data[CONF_TELNET_PORT])
+            
+            # Wait for data
+            _LOGGER.debug("Connected, waiting for data...")
+            response = tn.read_until(b"\n", timeout=5)
+            _LOGGER.debug("Received data: %s", response)
+            
+            # Close connection
+            tn.close()
+            
+            if not response:
+                raise CannotConnect("No data received from FlightGear")
+                
+            return True
+            
+        except EOFError:
+            _LOGGER.error("Connection closed by FlightGear")
+            raise CannotConnect("Connection closed by FlightGear")
+        except ConnectionRefusedError:
+            _LOGGER.error("Connection refused")
+            raise CannotConnect("Connection refused by FlightGear")
+        except socket.timeout:
+            _LOGGER.error("Connection timed out")
+            raise CannotConnect("Connection timed out")
+        except Exception as err:
+            _LOGGER.exception("Unexpected error")
+            raise CannotConnect(f"Connection error: {str(err)}")
+        finally:
+            try:
+                tn.close()
+            except Exception:  # pylint: disable=broad-except
+                pass
 
     try:
-        # Create a socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)  # 5 second timeout
-        
-        _LOGGER.debug("Socket created, attempting connection...")
-        
-        # Convert the socket connect to an async operation
-        await hass.async_add_executor_job(
-            sock.connect, (data[CONF_HOST], data[CONF_TELNET_PORT])
-        )
-        
-        _LOGGER.debug("Connected successfully, attempting to receive data...")
-        
-        # Try to receive some data
-        try:
-            initial_data = await hass.async_add_executor_job(
-                sock.recv, 1024
-            )
-            _LOGGER.debug("Received data: %s", initial_data)
-        except socket.timeout:
-            _LOGGER.error("Timeout while receiving data")
-            raise CannotConnect("Timeout while receiving data")
-        
-        # Close the socket properly
-        sock.close()
-        _LOGGER.debug("Connection test completed successfully")
-        
-        if not initial_data:
-            _LOGGER.error("No data received from FlightGear")
-            raise CannotConnect("No data received from FlightGear")
-        
-    except socket.timeout:
-        _LOGGER.error("Connection timed out")
-        raise CannotConnect("Connection timed out")
-    except ConnectionRefusedError:
-        _LOGGER.error("Connection refused")
-        raise CannotConnect("Connection refused")
-    except socket.gaierror:
-        _LOGGER.error("Address resolution error")
-        raise CannotConnect("Address resolution error")
+        await hass.async_add_executor_job(try_connect)
     except Exception as err:
-        _LOGGER.exception("Unexpected error during connection test")
-        raise CannotConnect(f"Unexpected error: {str(err)}")
+        _LOGGER.error("Failed to connect: %s", str(err))
+        raise
 
     # Return info that you want to store in the config entry.
     return {"title": data[CONF_NAME]}
